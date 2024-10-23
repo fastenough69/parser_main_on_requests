@@ -1,15 +1,18 @@
 from string import digits
 from time import time
-import requests
+import asyncio
+import aiohttp
+from os import getenv
 
 def get_time(func):
-    def decorator(*args):
+    async def wrapper(*args, **kwargs):
         timer = time()
-        func(*args)
-        print(time() - timer)
-    return decorator
+        result = await func(*args, **kwargs)
+        print(f'Time execute: {time() - timer:.2f} seconds\nPress "F5" no Desktop to display the file')
+        return result
+    return wrapper
 
-def response_mail(mail_name: str):
+async def response_mail(sesion, mail_name: str):
     url = 'https://api.products.aspose.app/email/api/Checker/Check'
     headers = {
         'Accept': '*/*',
@@ -30,51 +33,32 @@ def response_mail(mail_name: str):
     data = {
     'email': mail_name
     }
-    try:
-        response = requests.post(url, headers=headers, data=data, timeout=10)
-        
-        # Проверка на успешный статус ответа
-        if response.status_code == 200:
-            data = response.json()
-            
-            # Проверка, что нужные ключи присутствуют в ответе
-            if 'email' in data and 'isDisposable' in data:
-                return data['email'], data['isDisposable']
-            else:
-                print("Ошибка: не найдены необходимые данные в ответе.")
-                return
+    async with sesion.post(url, headers=headers, data=data) as response:
+        data = await response.json()
+        if data['existenceStatus'] == 'Exists':
+            return data['email'], 'valid'
         else:
-            print(f"Ошибка: получен статус {response.status_code}")
-            return
-    except requests.exceptions.Timeout:
-        print("Запрос превысил время ожидания.")
-    except requests.exceptions.RequestException as e:
-        print(f"Произошла ошибка: {e}")
-
-def write_file(tpl: tuple):
-    with open('C:\\Users\\lisen\\OneDrive\\Рабочий стол\\output.txt', 'w') as output_file:
-        if tpl:
-            output_file.writelines(f'{tpl[0]}\t\t\tstatus: {tpl[1]}')
-        else:
-             output_file.writelines(f'-\t\t\tstatus: -')
+            return data['email'], '-'
 
 def check_name_mail(data: list):
-    return [name for name in data if '_' not in name and ' ' not in name and name[0] not in digits]
-
-def threanding_first(data: list):
-    for i in range(len(data)):
-        temp = response_mail(data[i] + '@gmail.com')
-        write_file(temp)
+    return [name for name in data if '_' not in name or ' ' not in name or name[0] not in digits]
 
 @get_time
-def main():
-    name_file = input('Введите полный путь до файла: ')
+async def main():
+    name_file = input('Input full path file with emails: ')
+    user = getenv('USERNAME') 
     with open(name_file, 'r') as input_file:
         temp = input_file.readlines()
-    data = [line.split('|')[1].strip() for line in temp if line != '\n']
-    data = check_name_mail(data)
-    threanding_first(data)
+    async with aiohttp.ClientSession() as session:
+        data = [line.split('|')[1].strip() for line in temp if line != '\n']
+        data = check_name_mail(data)
+        tasks_gmail = [response_mail(session, name + '@gmail.com') for name in data]
+        tasks_inbox = [response_mail(session, name + '@inbox.me') for name in data]
+        tasks = tasks_inbox + tasks_gmail
+        res = await asyncio.gather(*tasks)
+        with open(f'C:\\Users\\{user}\\Desktop\\output.txt', 'w') as output_file:
+            for mail, status in res:
+                output_file.writelines(f'{mail}\tstatus: {status}\n')
 
 if __name__ == '__main__':
-    main()
-
+    asyncio.run(main())
