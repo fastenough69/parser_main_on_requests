@@ -14,6 +14,7 @@ def get_time(func):
         except Exception as e:
             print(f'There been an error: {e}')
             print(f'Time execute: {time() - timer:.2f} seconds\nPress "F5" no Desktop to display the file')
+            return
         finally:
             input('Press Enter to close the programme...')
     return wrapper
@@ -42,7 +43,7 @@ async def response_mail(sesion, mail_name: str, name_url: str):
     async with sesion.post(url, headers=headers, data=data) as response:
         data = await response.json()
         if data['existenceStatus'] == 'Exists':
-            return data['email'], 'valid', name_url
+            return data['email'], name_url
         else:
             return 0, 0
 
@@ -64,8 +65,8 @@ async def main():
         tasks = tasks_inbox + tasks_gmail + tasks_icloud
         res = await asyncio.gather(*tasks)
     with open(f'C:\\Users\\{user}\\Desktop\\output.txt', 'w') as output_file:
-        for mail, status, mail_url in res:
-            if mail and status and mail_url: output_file.writelines(f'{mail}\t{mail_url}\n')
+        for mail, mail_url in res:
+            if mail and mail_url: output_file.writelines(f'{mail}\t{mail_url}\n')
 
 if __name__ == '__main__':
     asyncio.run(main())
