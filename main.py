@@ -64,7 +64,7 @@ async def main():
         tasks_icloud =  [response_mail(session, name[1] + '@icloud.com', name[0]) for name in data]
         tasks = tasks_inbox + tasks_gmail + tasks_icloud
         res = await asyncio.gather(*tasks)
-        with open(f'C:\\Users\\{user}\\OneDrive\\Рабочий стол\\output.txt', 'w') as output_file:
+        with open(f'C:\\Users\\{user}\\Desktop\\output.txt', 'w') as output_file:
             for mail, mail_url in res:
                 if mail and mail_url: output_file.writelines(f'{mail}\t{mail_url}\n')
 
